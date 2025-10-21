@@ -17,31 +17,78 @@ class GildedRose(object):
 
     def update_quality(self):
         for item in self.items:
-            if item.name != "Aged Brie" and item.name != "Backstage passes to a TAFKAL80ETC concert":
-                if item.quality > 0:
-                    if item.name != "Sulfuras, Hand of Ragnaros":
-                        item.quality = item.quality - 1
-            else:
-                if item.quality < 50:
-                    item.quality = item.quality + 1
-                    if item.name == "Backstage passes to a TAFKAL80ETC concert":
-                        if item.sell_in < 11:
-                            if item.quality < 50:
-                                item.quality = item.quality + 1
-                        if item.sell_in < 6:
-                            if item.quality < 50:
-                                item.quality = item.quality + 1
-            if item.name != "Sulfuras, Hand of Ragnaros":
-                item.sell_in = item.sell_in - 1
-            if item.sell_in < 0:
-                if item.name != "Aged Brie":
-                    if item.name != "Backstage passes to a TAFKAL80ETC concert":
-                        if item.quality > 0:
-                            if item.name != "Sulfuras, Hand of Ragnaros":
-                                item.quality = item.quality - 1
-                    else:
-                        item.quality = item.quality - item.quality
-                else:
-                    if item.quality < 50:
-                        item.quality = item.quality + 1
+            ItemFactory.create(item).update()
 
+
+# --- Strategy Classes ---
+class ItemStrategy:
+    def __init__(self, item):
+        self.item = item
+
+    def update(self):
+        self.update_quality()
+        self.update_sell_in()
+        self.handle_expired()
+
+    def update_quality(self):
+        pass
+
+    def update_sell_in(self):
+        if self.item.name != "Sulfuras, Hand of Ragnaros":
+            self.item.sell_in -= 1
+
+    def handle_expired(self):
+        pass
+
+
+class NormalItem(ItemStrategy):
+    def update_quality(self):
+        if self.item.quality > 0:
+            self.item.quality -= 1
+
+    def handle_expired(self):
+        if self.item.sell_in < 0 and self.item.quality > 0:
+            self.item.quality -= 1
+
+
+class AgedBrie(ItemStrategy):
+    def update_quality(self):
+        if self.item.quality < 50:
+            self.item.quality += 1
+
+    def handle_expired(self):
+        if self.item.sell_in < 0 and self.item.quality < 50:
+            self.item.quality += 1
+
+
+class BackstagePass(ItemStrategy):
+    def update_quality(self):
+        if self.item.quality < 50:
+            self.item.quality += 1
+            if self.item.sell_in < 11 and self.item.quality < 50:
+                self.item.quality += 1
+            if self.item.sell_in < 6 and self.item.quality < 50:
+                self.item.quality += 1
+
+    def handle_expired(self):
+        if self.item.sell_in < 0:
+            self.item.quality = 0
+
+
+class Sulfuras(ItemStrategy):
+    def update(self):
+        pass  # legendary item, no change
+
+
+# --- Factory ---
+class ItemFactory:
+    @staticmethod
+    def create(item):
+        if item.name == "Aged Brie":
+            return AgedBrie(item)
+        elif "Backstage passes" in item.name:
+            return BackstagePass(item)
+        elif item.name == "Sulfuras, Hand of Ragnaros":
+            return Sulfuras(item)
+        else:
+            return NormalItem(item)
